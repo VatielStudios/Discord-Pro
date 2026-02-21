@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
   Users, MessageSquare, Hash, Plus, Settings, 
   Check, X, Compass, Inbox, HelpCircle, ChevronRight,
   Gamepad2, ShoppingBag, Radio, Mic, Headphones,
   Smile, Pencil, Reply, Forward, Copy, Pin, LayoutGrid, 
-  BellOff, Link, Volume2, Trash2, Flag, Bookmark, Fingerprint
+  BellOff, Link, Volume2, Trash2, Flag, Bookmark, Fingerprint,
+  UserCircle, Calendar, ShieldCheck, MoreHorizontal, UserPlus
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -33,6 +34,183 @@ const appId = 'discord-clone-pro';
 
 const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
 
+// --- Helpers ---
+const getAvatarColor = (username) => {
+  const colors = ['#ff5c5c', '#5865f2', '#23a559', '#f23f42', '#fee75c', '#eb459e', '#a44af6'];
+  if (!username) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// --- Components ---
+
+function Avatar({ user, status, size = "w-8 h-8", onClick }) {
+  const bgColor = useMemo(() => getAvatarColor(user?.username), [user?.username]);
+  
+  return (
+    <div className={`relative shrink-0 ${size} cursor-pointer group`} onClick={onClick}>
+      <div 
+        style={{ backgroundColor: user?.avatar ? 'transparent' : bgColor }}
+        className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
+      >
+        {user?.avatar ? (
+          <img src={user.avatar} className="w-full h-full object-cover" alt="" />
+        ) : (
+          <span className="text-white font-bold select-none" style={{ fontSize: 'calc(40%)' }}>
+            {user?.username?.substring(0, 1).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${status === 'online' ? 'bg-[#23a559]' : 'bg-[#80848e]'}`} />
+    </div>
+  );
+}
+
+function UserProfileCard({ user, onClose, isMe, onOpenSettings }) {
+  const bgColor = getAvatarColor(user.username);
+  const memberSince = new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="w-[340px] bg-[#111214] rounded-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        {/* Banner */}
+        <div style={{ backgroundColor: bgColor }} className="h-16 w-full relative" />
+        
+        <div className="px-4 pb-4 relative">
+          {/* Avatar Positioned on Banner */}
+          <div className="absolute -top-10 left-4">
+            <div className="p-1.5 bg-[#111214] rounded-full">
+              <Avatar user={user} size="w-20 h-20" />
+            </div>
+          </div>
+
+          <div className="mt-12 space-y-3">
+            <div>
+              <h2 className="text-xl font-bold text-white leading-tight">{user.displayName || user.username}</h2>
+              <p className="text-[#dbdee1] text-sm">{user.username}</p>
+            </div>
+
+            <div className="h-[1px] bg-[#2b2d31] w-full" />
+
+            <div>
+              <p className="text-[11px] font-bold text-[#dbdee1] uppercase mb-1">About Me</p>
+              <p className="text-sm text-[#dbdee1] whitespace-pre-wrap">
+                {user.bio || (isMe ? "Click 'Edit Profile' to add a bio!" : "This user hasn't added a bio yet.")}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-[#dbdee1] uppercase mb-1">Member Since</p>
+              <div className="flex items-center gap-2 text-sm text-[#dbdee1]">
+                <Calendar size={14} /> {memberSince}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              {isMe ? (
+                <button 
+                  onClick={() => { onOpenSettings(); onClose(); }}
+                  className="flex-1 bg-[#4e5058] hover:bg-[#6d6f78] text-white text-sm font-medium py-2 rounded transition-colors"
+                >
+                  Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button className="flex-1 bg-[#5865f2] hover:bg-[#4752c4] text-white text-sm font-medium py-2 rounded transition-colors flex items-center justify-center gap-2">
+                    <MessageSquare size={16} /> Message
+                  </button>
+                  <button className="p-2 bg-[#4e5058] hover:bg-[#6d6f78] text-white rounded transition-colors">
+                    <UserPlus size={18} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsModal({ profile, onClose, db, appId }) {
+  const [displayName, setDisplayName] = useState(profile.displayName || '');
+  const [bio, setBio] = useState(profile.bio || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    setLoading(true);
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', profile.id), {
+      displayName,
+      bio
+    });
+    setLoading(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-[#313338] flex">
+      <div className="w-60 bg-[#2b2d31] flex flex-col items-end pt-14 px-2">
+        <div className="w-48">
+          <p className="text-[11px] font-bold text-[#949ba4] uppercase px-2 mb-1.5">User Settings</p>
+          <button className="w-full text-left px-2 py-1.5 rounded bg-[#3f4147] text-white text-sm font-medium">My Account</button>
+          <button className="w-full text-left px-2 py-1.5 rounded text-[#b5bac1] hover:bg-[#35373c] hover:text-[#dbdee1] text-sm mt-0.5">Profiles</button>
+        </div>
+      </div>
+
+      <div className="flex-1 bg-[#313338] pt-14 pb-20 px-10 overflow-y-auto">
+        <div className="max-w-[700px]">
+          <h2 className="text-white text-xl font-bold mb-5">Profiles</h2>
+          
+          <div className="space-y-6">
+            <div className="bg-[#2b2d31] p-4 rounded-lg">
+              <label className="block text-[11px] font-bold text-[#b5bac1] uppercase mb-2">Display Name</label>
+              <input 
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                className="w-full bg-[#1e1f22] text-[#dbdee1] p-2 rounded outline-none border border-transparent focus:border-[#00a8fc]"
+              />
+            </div>
+
+            <div className="bg-[#2b2d31] p-4 rounded-lg">
+              <label className="block text-[11px] font-bold text-[#b5bac1] uppercase mb-2">About Me</label>
+              <textarea 
+                value={bio}
+                onChange={e => setBio(e.target.value)}
+                rows={4}
+                placeholder="You can use markdown and links if you like."
+                className="w-full bg-[#1e1f22] text-[#dbdee1] p-2 rounded outline-none border border-transparent focus:border-[#00a8fc] resize-none"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[#232428] p-4 flex justify-center">
+        <div className="w-full max-w-[700px] flex justify-between items-center">
+          <p className="text-white text-sm">Careful — you have unsaved changes!</p>
+          <div className="flex gap-4">
+            <button onClick={onClose} className="text-white text-sm hover:underline">Reset</button>
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className="bg-[#23a559] hover:bg-[#1a8344] text-white px-6 py-2 rounded font-medium text-sm transition-colors"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button onClick={onClose} className="absolute top-14 right-14 w-9 h-9 border-2 border-[#b5bac1] rounded-full flex items-center justify-center text-[#b5bac1] hover:text-white hover:border-white transition-all">
+        <X size={20} />
+      </button>
+    </div>
+  );
+}
+
 // --- Main App Component ---
 function App() {
   const [user, setUser] = useState(null);
@@ -48,6 +226,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('friends'); 
   const [activeServer, setActiveServer] = useState(null);
   const [friendTab, setFriendTab] = useState('online'); 
+
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -70,7 +251,7 @@ function App() {
     return () => unsub.forEach(u => u());
   }, [user]);
 
-  if (authLoading) return <div className="h-screen bg-[#1e1f22] flex items-center justify-center text-white font-medium">Loading Discord...</div>;
+  if (authLoading) return <div className="h-screen bg-[#1e1f22] flex items-center justify-center text-white font-medium">Loading...</div>;
   
   const profile = users.find(u => u.id === user?.uid);
   if (!user || !profile) return <AuthScreen db={db} appId={appId} />;
@@ -81,6 +262,17 @@ function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#313338] text-[#dbdee1] font-sans overflow-hidden select-none">
+      {/* Profile Overlays */}
+      {selectedProfileId && (
+        <UserProfileCard 
+          user={users.find(u => u.id === selectedProfileId)} 
+          isMe={selectedProfileId === user.uid}
+          onClose={() => setSelectedProfileId(null)}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      )}
+      {showSettings && <SettingsModal profile={profile} onClose={() => setShowSettings(false)} db={db} appId={appId} />}
+
       {/* 1. Server Rail */}
       <div className="w-[72px] bg-[#1e1f22] flex-shrink-0 flex flex-col items-center py-3 space-y-2 overflow-y-auto no-scrollbar relative z-20">
         <div className="relative group">
@@ -140,24 +332,23 @@ function App() {
 
         {/* Profile Section */}
         <div className="h-[52px] bg-[#232428] px-2 flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-2 p-1 rounded hover:bg-[#3f4147] cursor-pointer flex-1 min-w-0">
-            <Avatar url={profile.avatar} status={profile.status} size="w-8 h-8" />
+          <div onClick={() => setSelectedProfileId(profile.id)} className="flex items-center gap-2 p-1 rounded hover:bg-[#3f4147] cursor-pointer flex-1 min-w-0">
+            <Avatar user={profile} status={profile.status} size="w-8 h-8" />
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-white leading-tight truncate">{profile.username}</span>
+              <span className="text-sm font-bold text-white leading-tight truncate">{profile.displayName || profile.username}</span>
               <span className="text-[11px] text-[#b5bac1] leading-tight truncate">Online</span>
             </div>
           </div>
           <div className="flex items-center text-[#b5bac1]">
             <button className="p-1.5 hover:bg-[#3f4147] rounded transition-colors"><Mic size={18}/></button>
             <button className="p-1.5 hover:bg-[#3f4147] rounded transition-colors"><Headphones size={18}/></button>
-            <button onClick={() => signOut(auth)} className="p-1.5 hover:bg-[#3f4147] rounded hover:text-white transition-colors"><Settings size={18}/></button>
+            <button onClick={() => setShowSettings(true)} className="p-1.5 hover:bg-[#3f4147] rounded hover:text-white transition-colors"><Settings size={18}/></button>
           </div>
         </div>
       </div>
 
       {/* 3. Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#313338] relative z-0">
-        {/* Top Header */}
         <div className="h-12 border-b border-[#1e1f22]/50 flex items-center px-4 justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 font-bold text-white border-r border-[#3f4147] pr-4">
@@ -186,13 +377,12 @@ function App() {
         <div className="flex-1 flex min-h-0 overflow-hidden relative">
           <div className="flex-1 flex flex-col min-w-0">
             {activeTab === 'friends' ? (
-              <FriendsMain tab={friendTab} profile={profile} users={users} friends={myFriends} chats={chats} setActiveTab={setActiveTab} setActiveView={setActiveView} db={db} appId={appId} />
+              <FriendsMain tab={friendTab} profile={profile} users={users} friends={myFriends} chats={chats} setActiveTab={setActiveTab} setActiveView={setActiveView} db={db} appId={appId} onOpenProfile={setSelectedProfileId} />
             ) : (
-              <ChatArea chatId={activeTab} messages={messages} profile={profile} users={users} db={db} appId={appId} />
+              <ChatArea chatId={activeTab} messages={messages} profile={profile} users={users} db={db} appId={appId} onOpenProfile={setSelectedProfileId} />
             )}
           </div>
 
-          {/* Right Sidebar - "Active Now" */}
           {activeTab === 'friends' && (
             <div className="w-[340px] border-l border-[#3f4147] flex-shrink-0 p-4 hidden xl:block bg-[#313338]">
               <h2 className="text-white font-black text-xl mb-4 tracking-wide">Active Now</h2>
@@ -229,160 +419,14 @@ function NavItem({ icon, label, active, onClick, badge }) {
 function DMItem({ user, active, onClick }) {
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md transition-colors ${active ? 'bg-[#3f4147] text-white' : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]'}`}>
-      <Avatar url={user.avatar} status={user.status} size="w-8 h-8" />
-      <span className="font-medium text-[15px] truncate">{user.username}</span>
+      <Avatar user={user} status={user.status} size="w-8 h-8" />
+      <span className="font-medium text-[15px] truncate">{user.displayName || user.username}</span>
     </button>
   );
 }
 
-function Avatar({ url, status, size = "w-8 h-8" }) {
-  return (
-    <div className={`relative shrink-0 ${size}`}>
-      <div className="w-full h-full bg-[#5865f2] rounded-full flex items-center justify-center overflow-hidden">
-        {url ? <img src={url} className="w-full h-full object-cover" /> : <Users size={16} className="text-white opacity-80" />}
-      </div>
-      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#2b2d31] ${status === 'online' ? 'bg-[#23a559]' : 'bg-[#80848e]'}`} />
-    </div>
-  );
-}
-
-function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setActiveView, db, appId }) {
-  const [input, setInput] = useState('');
-
-  const handleAddFriend = async () => {
-    const target = users.find(u => u.username.toLowerCase() === input.toLowerCase());
-    if (!target || target.id === profile.id) return alert("Invalid User");
-    
-    const existing = friends.find(f => (f.fromId === target.id && f.toId === profile.id) || (f.fromId === profile.id && f.toId === target.id));
-    if (existing) return alert("Already connected or pending.");
-
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'friends'), {
-      fromId: profile.id, toId: target.id, status: 'pending', timestamp: Date.now()
-    });
-    setInput('');
-    alert("Request Sent!");
-  };
-
-  const updateStatus = async (friendDocId, newStatus) => {
-    const friendRef = doc(db, 'artifacts', appId, 'public', 'data', 'friends', friendDocId);
-    if (newStatus === 'accepted') {
-      await updateDoc(friendRef, { status: 'accepted' });
-      const friendData = friends.find(f => f.docId === friendDocId);
-      const otherId = friendData.fromId === profile.id ? friendData.toId : friendData.fromId;
-      
-      const existingChat = chats.find(c => c.participants.includes(profile.id) && c.participants.includes(otherId));
-      if (existingChat) {
-        setActiveTab(existingChat.id);
-      } else {
-        const newChat = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats'), {
-          participants: [profile.id, otherId], timestamp: Date.now()
-        });
-        setActiveTab(newChat.id);
-      }
-      setActiveView('dms');
-    } else {
-      if (confirm("Are you sure?")) {
-        await deleteDoc(friendRef);
-      }
-    }
-  };
-
-  if (tab === 'add') {
-    return (
-      <div className="flex-1 p-6 overflow-y-auto">
-        <h1 className="text-white font-bold mb-2 text-base uppercase">Add Friend</h1>
-        <p className="text-[#b5bac1] text-[13px] mb-4">You can add friends with their Discord username.</p>
-        
-        <div className="relative mb-8">
-          <input 
-            value={input} 
-            onChange={e => setInput(e.target.value)} 
-            className="w-full bg-[#1e1f22] border border-black/20 rounded-lg py-3 px-4 text-white outline-none focus:border-[#00a8fc] transition-all placeholder:text-[#5c5e66]" 
-            placeholder="You can add friends with their Discord username." 
-          />
-          <button 
-            onClick={handleAddFriend}
-            disabled={!input}
-            className="absolute right-2 top-2 bg-[#5865f2] text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-[#4752c4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Send Friend Request
-          </button>
-        </div>
-
-        <div className="border-t border-[#3f4147] pt-8">
-          <h2 className="text-[#b5bac1] font-bold text-xs uppercase tracking-wider mb-4">Other Places to Make Friends</h2>
-          <div className="bg-[#2b2d31] hover:bg-[#35373c] border border-[#1e1f22] rounded-lg p-3 flex items-center justify-between cursor-pointer group transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#23a559] rounded-lg flex items-center justify-center text-white">
-                <Compass size={20} />
-              </div>
-              <span className="text-white font-medium text-sm">Explore Discoverable Servers</span>
-            </div>
-            <ChevronRight size={20} className="text-[#b5bac1] group-hover:text-white" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const list = friends.filter(f => tab === 'pending' ? (f.status === 'pending' && f.toId === profile.id) : f.status === 'accepted');
-
-  return (
-    <div className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-      {list.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full opacity-60">
-           <div className="w-[300px] h-[200px] flex flex-col items-center justify-center mb-10">
-              <Users size={80} className="text-[#80848e] mb-6" />
-              <p className="text-[#949ba4] text-[15px]">No friends here yet.</p>
-           </div>
-        </div>
-      ) : list.map(f => {
-        const other = users.find(u => u.id === (f.fromId === profile.id ? f.toId : f.fromId));
-        return other && (
-          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg group border-t border-[#3f4147] first:border-0">
-            <div className="flex items-center gap-3">
-              <Avatar url={other.avatar} status={other.status}/>
-              <div className="flex flex-col">
-                <span className="font-bold text-white leading-tight">{other.username}</span>
-                <span className="text-xs text-[#b5bac1]">{other.status || 'Offline'}</span>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              {f.status === 'pending' ? (
-                <>
-                  <button onClick={() => updateStatus(f.docId, 'accepted')} className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#23a559] transition-colors"><Check size={20}/></button>
-                  <button onClick={() => updateStatus(f.docId, 'rejected')} className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#f23f42] transition-colors"><X size={20}/></button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => { setActiveTab(chats.find(c => c.participants.includes(other.id))?.id || 'friends'); setActiveView('dms'); }} 
-                    className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-white transition-colors"
-                  >
-                    <MessageSquare size={18}/>
-                  </button>
-                  <button 
-                    onClick={() => updateStatus(f.docId, 'remove')} 
-                    className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#f23f42] transition-colors"
-                    title="Remove Friend"
-                  >
-                    <X size={18}/>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Context Menu Component
 function ContextMenu({ x, y, menuType, message, onClose, actions }) {
   const menuRef = useRef(null);
-
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
@@ -391,7 +435,6 @@ function ContextMenu({ x, y, menuType, message, onClose, actions }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // Prevent menu from overflowing screen
   const safeX = Math.min(x, window.innerWidth - 220);
   const safeY = Math.min(y, window.innerHeight - 380);
 
@@ -407,58 +450,78 @@ function ContextMenu({ x, y, menuType, message, onClose, actions }) {
 
   return (
     <div ref={menuRef} style={{ top: safeY, left: safeX }} className="fixed w-52 bg-[#111214] border border-[#1e1f22] rounded shadow-xl py-2 z-50 select-none">
-      {/* Emoji Reactions Row */}
-      <div className="flex items-center justify-between px-3 py-1 mb-1 border-b border-[#2b2d31] pb-2">
-         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">❤️</span>
-         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">💯</span>
-         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">👍</span>
-         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">👎</span>
+      <div className="flex items-center justify-between px-3 py-1 mb-1 border-b border-[#2b2d31] pb-2 text-lg">
+         <span>❤️</span><span>💯</span><span>👍</span><span>👎</span>
       </div>
-
-      <Item label="Add Reaction" icon={ChevronRight} onClick={() => alert('Feature coming soon!')} />
+      <Item label="Add Reaction" icon={ChevronRight} onClick={() => {}} />
       <div className="my-1 border-t border-[#2b2d31]" />
-      
       {menuType === 'own' && <Item label="Edit Message" icon={Pencil} onClick={() => actions.edit(message)} />}
-      
-      <Item label="Reply" icon={Reply} onClick={() => alert('Feature coming soon!')} />
-      <Item label="Forward" icon={Forward} onClick={() => alert('Feature coming soon!')} />
-      
+      <Item label="Reply" icon={Reply} onClick={() => {}} />
+      <Item label="Forward" icon={Forward} onClick={() => {}} />
       <div className="my-1 border-t border-[#2b2d31]" />
-      
       <Item label="Copy Text" icon={Copy} onClick={() => actions.copy(message.text)} />
-      <Item label="Pin Message" icon={Pin} onClick={() => alert('Feature coming soon!')} />
-      
-      {menuType === 'other' && <Item label="Bookmark Message" icon={Bookmark} onClick={() => alert('Feature coming soon!')} />}
-      
-      <Item label="Apps" icon={ChevronRight} onClick={() => alert('Feature coming soon!')} />
-      
+      <Item label="Pin Message" icon={Pin} onClick={() => {}} />
+      {menuType === 'other' && <Item label="Bookmark Message" icon={Bookmark} onClick={() => {}} />}
       <div className="my-1 border-t border-[#2b2d31]" />
-      
-      <Item label="Mark Unread" icon={BellOff} onClick={() => alert('Feature coming soon!')} />
-      <Item label="Copy Message Link" icon={Link} onClick={() => alert('Feature coming soon!')} />
-      <Item label="Speak Message" icon={Volume2} onClick={() => alert('Feature coming soon!')} />
-
+      <Item label="Speak Message" icon={Volume2} onClick={() => {}} />
       <div className="my-1 border-t border-[#2b2d31]" />
-      
       {menuType === 'own' ? (
         <Item label="Delete Message" icon={Trash2} danger onClick={() => actions.delete(message.id)} />
       ) : (
-        <>
-          <Item label="Report Message" icon={Flag} danger onClick={() => alert('Report submitted!')} />
-          <Item label="Copy Message ID" icon={Fingerprint} onClick={() => actions.copy(message.id)} />
-        </>
+        <Item label="Report Message" icon={Flag} danger onClick={() => {}} />
       )}
     </div>
   );
 }
 
-function ChatArea({ chatId, messages, profile, users, db, appId }) {
+function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setActiveView, db, appId, onOpenProfile }) {
+  const [input, setInput] = useState('');
+  const handleAddFriend = async () => {
+    const target = users.find(u => u.username.toLowerCase() === input.toLowerCase());
+    if (!target || target.id === profile.id) return alert("Invalid User");
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'friends'), {
+      fromId: profile.id, toId: target.id, status: 'pending', timestamp: Date.now()
+    });
+    setInput('');
+  };
+
+  const list = friends.filter(f => tab === 'pending' ? (f.status === 'pending' && f.toId === profile.id) : f.status === 'accepted');
+
+  return (
+    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+      {tab === 'add' ? (
+        <div className="max-w-2xl">
+          <h1 className="text-white font-bold mb-2 uppercase text-sm">Add Friend</h1>
+          <p className="text-[#b5bac1] text-xs mb-4">You can add friends with their Discord username.</p>
+          <div className="relative">
+            <input value={input} onChange={e => setInput(e.target.value)} className="w-full bg-[#1e1f22] p-3 rounded-lg text-white outline-none focus:border-[#00a8fc] border border-transparent" placeholder="Enter a Username#0000" />
+            <button onClick={handleAddFriend} className="absolute right-2 top-2 bg-[#5865f2] text-white px-4 py-1.5 rounded text-sm font-medium">Send Friend Request</button>
+          </div>
+        </div>
+      ) : list.map(f => {
+        const other = users.find(u => u.id === (f.fromId === profile.id ? f.toId : f.fromId));
+        return other && (
+          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg group border-t border-[#3f4147] first:border-0 cursor-pointer" onClick={() => onOpenProfile(other.id)}>
+            <div className="flex items-center gap-3">
+              <Avatar user={other} status={other.status}/>
+              <div className="flex flex-col">
+                <span className="font-bold text-white leading-tight">{other.displayName || other.username}</span>
+                <span className="text-xs text-[#b5bac1]">{other.status || 'Offline'}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChatArea({ chatId, messages, profile, users, db, appId, onOpenProfile }) {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
   const endRef = useRef(null);
-  
   const filtered = messages.filter(m => m.chatId === chatId).sort((a,b) => a.timestamp - b.timestamp);
   
   useEffect(() => { endRef.current?.scrollIntoView(); }, [filtered]);
@@ -472,126 +535,39 @@ function ChatArea({ chatId, messages, profile, users, db, appId }) {
     setText('');
   };
 
-  const handleContextMenu = (e, message) => {
-    e.preventDefault();
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      message,
-      type: message.senderId === profile.id ? 'own' : 'other'
-    });
-  };
-
   const menuActions = {
-    delete: async (id) => {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id));
-    },
-    edit: (msg) => {
-      setEditingId(msg.id);
-      setEditText(msg.text);
-    },
-    copy: (text) => {
-      navigator.clipboard.writeText(text);
-    }
+    delete: async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id)),
+    edit: (msg) => { setEditingId(msg.id); setEditText(msg.text); },
+    copy: (text) => navigator.clipboard.writeText(text)
   };
-
-  const saveEdit = async (e, id) => {
-    e.preventDefault();
-    if (!editText.trim()) return setEditingId(null);
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id), { text: editText.trim() });
-    setEditingId(null);
-  };
-
-  // Group messages by date
-  const groupedMessages = [];
-  let lastDate = null;
-
-  filtered.forEach((m) => {
-    const dateObj = new Date(m.timestamp);
-    const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    
-    if (dateStr !== lastDate) {
-      groupedMessages.push({ type: 'separator', date: dateStr, id: `sep-${dateStr}` });
-      lastDate = dateStr;
-    }
-    groupedMessages.push({ type: 'message', ...m });
-  });
 
   return (
-    <div className="flex-1 flex flex-col bg-[#313338] relative" onClick={() => contextMenu && setContextMenu(null)}>
-      {contextMenu && (
-        <ContextMenu 
-          x={contextMenu.x} 
-          y={contextMenu.y} 
-          menuType={contextMenu.type} 
-          message={contextMenu.message} 
-          onClose={() => setContextMenu(null)}
-          actions={menuActions}
-        />
-      )}
-
+    <div className="flex-1 flex flex-col bg-[#313338] relative">
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} menuType={contextMenu.type} message={contextMenu.message} onClose={() => setContextMenu(null)} actions={menuActions} />}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        {groupedMessages.map(item => {
-          if (item.type === 'separator') {
-            return (
-              <div key={item.id} className="flex items-center justify-center my-6">
-                <div className="flex-1 h-[1px] bg-[#3f4147]"></div>
-                <span className="mx-4 text-xs font-semibold text-[#949ba4]">{item.date}</span>
-                <div className="flex-1 h-[1px] bg-[#3f4147]"></div>
-              </div>
-            );
-          }
-
-          const m = item;
+        {filtered.map(m => {
           const sender = users.find(u => u.id === m.senderId);
-          const isEditing = editingId === m.id;
-
           return (
-            <div 
-              key={m.id} 
-              className="flex gap-4 hover:bg-[#2e3035] -mx-4 px-4 py-1 group relative"
-              onContextMenu={(e) => handleContextMenu(e, m)}
-            >
-              <Avatar url={sender?.avatar} size="w-10 h-10 mt-0.5" />
-              <div className="flex-1 min-w-0">
+            <div key={m.id} className="flex gap-4 hover:bg-[#2e3035] -mx-4 px-4 py-1 group relative" onContextMenu={e => { e.preventDefault(); setContextMenu({x: e.clientX, y: e.clientY, message: m, type: m.senderId === profile.id ? 'own' : 'other'}); }}>
+              <Avatar user={sender} size="w-10 h-10 mt-0.5" onClick={() => onOpenProfile(sender.id)} />
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white hover:underline cursor-pointer">{sender?.username}</span>
-                  <span className="text-[11px] text-[#949ba4]">{new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  <span className="font-bold text-white hover:underline cursor-pointer" onClick={() => onOpenProfile(sender.id)}>{sender?.displayName || sender?.username}</span>
+                  <span className="text-[11px] text-[#949ba4]">{new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                 </div>
-                
-                {isEditing ? (
-                  <form onSubmit={(e) => saveEdit(e, m.id)} className="mt-1">
-                    <input 
-                      autoFocus
-                      value={editText} 
-                      onChange={e => setEditText(e.target.value)} 
-                      onKeyDown={e => { if(e.key === 'Escape') setEditingId(null) }}
-                      className="w-full bg-[#383a40] rounded px-3 py-1.5 text-[#dbdee1] outline-none" 
-                    />
-                    <div className="text-xs text-[#949ba4] mt-1">escape to <span className="text-[#00a8fc] cursor-pointer hover:underline" onClick={() => setEditingId(null)}>cancel</span> • enter to <span className="text-[#00a8fc] cursor-pointer hover:underline" onClick={(e) => saveEdit(e, m.id)}>save</span></div>
+                {editingId === m.id ? (
+                  <form onSubmit={async e => { e.preventDefault(); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', m.id), {text: editText}); setEditingId(null); }} className="mt-1">
+                    <input autoFocus value={editText} onChange={e => setEditText(e.target.value)} className="w-full bg-[#383a40] rounded px-3 py-1.5 text-[#dbdee1] outline-none" />
                   </form>
-                ) : (
-                  <div className="text-[#dbdee1] leading-relaxed break-words">{m.text}</div>
-                )}
+                ) : <div className="text-[#dbdee1] break-words">{m.text}</div>}
               </div>
             </div>
           );
         })}
         <div ref={endRef} />
       </div>
-
       <form onSubmit={send} className="p-4 pt-0">
-        <div className="relative">
-          <input 
-            value={text} 
-            onChange={e => setText(e.target.value)} 
-            className="w-full bg-[#383a40] rounded-lg pl-4 pr-12 py-3 text-[#dbdee1] outline-none placeholder:text-[#5c5e66]" 
-            placeholder="Message..." 
-          />
-          <div className="absolute right-3 top-2.5 flex items-center gap-2">
-            <Smile size={24} className="text-[#b5bac1] hover:text-[#dbdee1] cursor-pointer transition-colors" />
-          </div>
-        </div>
+        <input value={text} onChange={e => setText(e.target.value)} className="w-full bg-[#383a40] rounded-lg px-4 py-3 text-[#dbdee1] outline-none" placeholder="Message..." />
       </form>
     </div>
   );
@@ -602,7 +578,6 @@ function AuthScreen({ db, appId }) {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isLogin, setIsLogin] = useState(true);
-
   const submit = async (e) => {
     e.preventDefault();
     try {
@@ -610,35 +585,26 @@ function AuthScreen({ db, appId }) {
       else {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', cred.user.uid), {
-          username: username.trim(), avatar: '', status: 'online', createdAt: Date.now(), id: cred.user.uid
+          username: username.trim(), avatar: '', status: 'online', createdAt: Date.now(), id: cred.user.uid, bio: '', displayName: ''
         });
       }
     } catch (err) { alert(err.message); }
   };
-
   return (
     <div className="h-screen bg-[#5865f2] flex items-center justify-center p-4">
       <div className="bg-[#313338] w-full max-w-[480px] p-8 rounded-lg shadow-2xl text-white">
         <h1 className="text-2xl font-bold text-center mb-6">{isLogin ? 'Welcome back!' : 'Create an account'}</h1>
         <form onSubmit={submit} className="space-y-4">
-          {!isLogin && <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />}
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />
-          <button className="w-full bg-[#5865f2] hover:bg-[#4752c4] font-bold py-3 rounded mt-2 transition-colors">{isLogin ? 'Log In' : 'Continue'}</button>
+          {!isLogin && <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />}
+          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />
+          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />
+          <button className="w-full bg-[#5865f2] font-bold py-3 rounded mt-2">{isLogin ? 'Log In' : 'Continue'}</button>
         </form>
-        <p className="mt-4 text-sm text-[#949ba4] text-center">{isLogin ? "Need an account?" : "Already have an account?"} <span onClick={() => setIsLogin(!isLogin)} className="text-[#00a8fc] cursor-pointer hover:underline">{isLogin ? 'Register' : 'Login'}</span></p>
+        <p className="mt-4 text-sm text-[#949ba4] text-center" onClick={() => setIsLogin(!isLogin)}>{isLogin ? "Need an account? Register" : "Have an account? Login"}</p>
       </div>
     </div>
   );
 }
 
-// --- Entry Point ---
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
