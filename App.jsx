@@ -209,6 +209,11 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
   const handleAddFriend = async () => {
     const target = users.find(u => u.username.toLowerCase() === input.toLowerCase());
     if (!target || target.id === profile.id) return alert("Invalid User");
+    
+    // Check if already friends or pending
+    const existing = friends.find(f => (f.fromId === target.id && f.toId === profile.id) || (f.fromId === profile.id && f.toId === target.id));
+    if (existing) return alert("Friend request already exists or you are already friends.");
+
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'friends'), {
       fromId: profile.id, toId: target.id, status: 'pending', timestamp: Date.now()
     });
@@ -234,7 +239,10 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
       }
       setActiveView('dms');
     } else {
-      await deleteDoc(friendRef);
+      // This handles both "Reject" and "Unfriend"
+      if (confirm("Are you sure you want to remove this friend?")) {
+        await deleteDoc(friendRef);
+      }
     }
   };
 
@@ -253,18 +261,47 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
   const list = friends.filter(f => tab === 'pending' ? (f.status === 'pending' && f.toId === profile.id) : f.status === 'accepted');
 
   return (
-    <div className="flex-1 p-4 space-y-2">
-      {list.map(f => {
+    <div className="flex-1 p-4 space-y-2 overflow-y-auto">
+      {list.length === 0 ? (
+        <div className="flex flex-col items-center mt-20 opacity-40">
+           <Users size={64} />
+           <p className="mt-4">No friends here yet.</p>
+        </div>
+      ) : list.map(f => {
         const other = users.find(u => u.id === (f.fromId === profile.id ? f.toId : f.fromId));
         return other && (
-          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg">
-            <div className="flex items-center gap-3"><Avatar url={other.avatar} status={other.status}/><span className="font-bold text-white">{other.username}</span></div>
+          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg group">
+            <div className="flex items-center gap-3">
+              <Avatar url={other.avatar} status={other.status}/>
+              <div className="flex flex-col">
+                <span className="font-bold text-white leading-tight">{other.username}</span>
+                <span className="text-xs text-[#b5bac1]">{other.status || 'offline'}</span>
+              </div>
+            </div>
+            
             <div className="flex gap-2">
               {f.status === 'pending' ? (
-                <><button onClick={() => updateStatus(f.docId, 'accepted')} className="p-2 bg-[#23a559] rounded-full text-white"><Check size={18}/></button>
-                <button onClick={() => updateStatus(f.docId, 'rejected')} className="p-2 bg-[#f23f42] rounded-full text-white"><X size={18}/></button></>
+                <>
+                  <button onClick={() => updateStatus(f.docId, 'accepted')} className="p-2 bg-[#23a559] rounded-full text-white hover:bg-[#1a8344] transition-colors"><Check size={18}/></button>
+                  <button onClick={() => updateStatus(f.docId, 'rejected')} className="p-2 bg-[#f23f42] rounded-full text-white hover:bg-[#a12d2f] transition-colors"><X size={18}/></button>
+                </>
               ) : (
-                <button className="p-2 bg-[#1e1f22] rounded-full text-[#b5bac1]"><MessageSquare size={18}/></button>
+                <>
+                  <button 
+                    onClick={() => { setActiveTab(chats.find(c => c.participants.includes(other.id))?.id || 'friends'); setActiveView('dms'); }} 
+                    className="p-2 bg-[#1e1f22] rounded-full text-[#b5bac1] hover:text-white transition-colors"
+                  >
+                    <MessageSquare size={18}/>
+                  </button>
+                  {/* UNFRIEND BUTTON */}
+                  <button 
+                    onClick={() => updateStatus(f.docId, 'remove')} 
+                    className="p-2 bg-[#1e1f22] rounded-full text-[#b5bac1] hover:text-red-400 transition-colors"
+                    title="Remove Friend"
+                  >
+                    <X size={18}/>
+                  </button>
+                </>
               )}
             </div>
           </div>
