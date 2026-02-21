@@ -396,10 +396,11 @@ function AuthScreen({ user, db, appId }) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<React.StrictMode><App /></React.StrictMode>);    ];
-    return () => unsub.forEach(u => u());
-  }, [user]);
-
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
   useEffect(() => {
     if (!user || users.length === 0) return;
     const profile = users.find(u => u.id === user.uid);
