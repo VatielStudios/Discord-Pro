@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { 
   Users, MessageSquare, Hash, Plus, Settings, 
   Check, X, Compass, Inbox, HelpCircle, ChevronRight,
-  Gamepad2, ShoppingBag, Radio, Mic, Headphones
+  Gamepad2, ShoppingBag, Radio, Mic, Headphones,
+  Smile, Pencil, Reply, Forward, Copy, Pin, LayoutGrid, 
+  BellOff, Link, Volume2, Trash2, Flag, Bookmark, Fingerprint
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -80,7 +82,7 @@ function App() {
   return (
     <div className="flex h-screen w-full bg-[#313338] text-[#dbdee1] font-sans overflow-hidden select-none">
       {/* 1. Server Rail */}
-      <div className="w-[72px] bg-[#1e1f22] flex-shrink-0 flex flex-col items-center py-3 space-y-2 overflow-y-auto no-scrollbar">
+      <div className="w-[72px] bg-[#1e1f22] flex-shrink-0 flex flex-col items-center py-3 space-y-2 overflow-y-auto no-scrollbar relative z-20">
         <div className="relative group">
           <div className={`absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200 ${activeView === 'dms' ? 'h-10 top-1' : 'h-0 top-6 group-hover:h-5'}`}></div>
           <button onClick={() => { setActiveView('dms'); setActiveServer(null); setActiveTab('friends'); }}
@@ -103,7 +105,7 @@ function App() {
       </div>
 
       {/* 2. Sidebar */}
-      <div className="w-60 bg-[#2b2d31] flex-shrink-0 flex flex-col">
+      <div className="w-60 bg-[#2b2d31] flex-shrink-0 flex flex-col relative z-10">
         <div className="h-12 border-b border-[#1e1f22]/50 flex items-center px-4 shadow-sm shrink-0">
           {activeView === 'dms' ? (
              <button className="w-full h-7 bg-[#1e1f22] text-[#949ba4] text-[13px] px-2 rounded-sm text-left font-normal truncate">Find or start a conversation</button>
@@ -154,22 +156,24 @@ function App() {
       </div>
 
       {/* 3. Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#313338]">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#313338] relative z-0">
         {/* Top Header */}
         <div className="h-12 border-b border-[#1e1f22]/50 flex items-center px-4 justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 font-bold text-white border-r border-[#3f4147] pr-4">
               <Users size={20} className="text-[#80848e]" /> Friends
             </div>
-            <div className="flex gap-4 text-sm">
-              {['Online', 'All', 'Pending'].map(t => (
-                <button key={t} onClick={() => setFriendTab(t.toLowerCase())} 
-                  className={`px-2 py-0.5 rounded font-medium transition-colors ${friendTab === t.toLowerCase() ? 'bg-[#3f4147] text-white' : 'text-[#b5bac1] hover:bg-[#3f4147] hover:text-[#dbdee1]'}`}>
-                  {t}
-                </button>
-              ))}
-              <button onClick={() => setFriendTab('add')} className={`px-2 py-0.5 rounded font-medium transition-colors ${friendTab === 'add' ? 'text-[#23a559] bg-[#23a559]/10' : 'bg-[#248046] text-white hover:bg-[#1a6334]'}`}>Add Friend</button>
-            </div>
+            {activeTab === 'friends' && (
+              <div className="flex gap-4 text-sm">
+                {['Online', 'All', 'Pending'].map(t => (
+                  <button key={t} onClick={() => setFriendTab(t.toLowerCase())} 
+                    className={`px-2 py-0.5 rounded font-medium transition-colors ${friendTab === t.toLowerCase() ? 'bg-[#3f4147] text-white' : 'text-[#b5bac1] hover:bg-[#3f4147] hover:text-[#dbdee1]'}`}>
+                    {t}
+                  </button>
+                ))}
+                <button onClick={() => setFriendTab('add')} className={`px-2 py-0.5 rounded font-medium transition-colors ${friendTab === 'add' ? 'text-[#23a559] bg-[#23a559]/10' : 'bg-[#248046] text-white hover:bg-[#1a6334]'}`}>Add Friend</button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 text-[#b5bac1]">
              <MessageSquare size={20} className="cursor-pointer hover:text-white" />
@@ -179,7 +183,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 flex min-h-0 overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden relative">
           <div className="flex-1 flex flex-col min-w-0">
             {activeTab === 'friends' ? (
               <FriendsMain tab={friendTab} profile={profile} users={users} friends={myFriends} chats={chats} setActiveTab={setActiveTab} setActiveView={setActiveView} db={db} appId={appId} />
@@ -189,13 +193,15 @@ function App() {
           </div>
 
           {/* Right Sidebar - "Active Now" */}
-          <div className="w-[340px] border-l border-[#3f4147] flex-shrink-0 p-4 hidden xl:block bg-[#313338]">
-            <h2 className="text-white font-black text-xl mb-4 tracking-wide">Active Now</h2>
-            <div className="bg-[#2b2d31] rounded-lg p-6 text-center">
-              <h3 className="text-white font-bold mb-1">It's quiet for now...</h3>
-              <p className="text-[#b5bac1] text-xs leading-relaxed">When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!</p>
+          {activeTab === 'friends' && (
+            <div className="w-[340px] border-l border-[#3f4147] flex-shrink-0 p-4 hidden xl:block bg-[#313338]">
+              <h2 className="text-white font-black text-xl mb-4 tracking-wide">Active Now</h2>
+              <div className="bg-[#2b2d31] rounded-lg p-6 text-center">
+                <h3 className="text-white font-bold mb-1">It's quiet for now...</h3>
+                <p className="text-[#b5bac1] text-xs leading-relaxed">When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -284,7 +290,7 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
   if (tab === 'add') {
     return (
       <div className="flex-1 p-6 overflow-y-auto">
-        <h1 className="text-white font-bold mb-2 text-base">ADD FRIEND</h1>
+        <h1 className="text-white font-bold mb-2 text-base uppercase">Add Friend</h1>
         <p className="text-[#b5bac1] text-[13px] mb-4">You can add friends with their Discord username.</p>
         
         <div className="relative mb-8">
@@ -324,39 +330,41 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
   return (
     <div className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
       {list.length === 0 ? (
-        <div className="flex flex-col items-center mt-20 opacity-40">
-           <Users size={64} />
-           <p className="mt-4">No friends here yet.</p>
+        <div className="flex flex-col items-center justify-center h-full opacity-60">
+           <div className="w-[300px] h-[200px] flex flex-col items-center justify-center mb-10">
+              <Users size={80} className="text-[#80848e] mb-6" />
+              <p className="text-[#949ba4] text-[15px]">No friends here yet.</p>
+           </div>
         </div>
       ) : list.map(f => {
         const other = users.find(u => u.id === (f.fromId === profile.id ? f.toId : f.fromId));
         return other && (
-          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg group">
+          <div key={f.docId} className="flex items-center justify-between p-3 hover:bg-[#3f4147]/50 rounded-lg group border-t border-[#3f4147] first:border-0">
             <div className="flex items-center gap-3">
               <Avatar url={other.avatar} status={other.status}/>
               <div className="flex flex-col">
                 <span className="font-bold text-white leading-tight">{other.username}</span>
-                <span className="text-xs text-[#b5bac1]">{other.status || 'offline'}</span>
+                <span className="text-xs text-[#b5bac1]">{other.status || 'Offline'}</span>
               </div>
             </div>
             
             <div className="flex gap-2">
               {f.status === 'pending' ? (
                 <>
-                  <button onClick={() => updateStatus(f.docId, 'accepted')} className="p-2 bg-[#23a559] rounded-full text-white hover:bg-[#1a8344] transition-colors"><Check size={18}/></button>
-                  <button onClick={() => updateStatus(f.docId, 'rejected')} className="p-2 bg-[#f23f42] rounded-full text-white hover:bg-[#a12d2f] transition-colors"><X size={18}/></button>
+                  <button onClick={() => updateStatus(f.docId, 'accepted')} className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#23a559] transition-colors"><Check size={20}/></button>
+                  <button onClick={() => updateStatus(f.docId, 'rejected')} className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#f23f42] transition-colors"><X size={20}/></button>
                 </>
               ) : (
                 <>
                   <button 
                     onClick={() => { setActiveTab(chats.find(c => c.participants.includes(other.id))?.id || 'friends'); setActiveView('dms'); }} 
-                    className="p-2 bg-[#1e1f22] rounded-full text-[#b5bac1] hover:text-white transition-colors"
+                    className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-white transition-colors"
                   >
                     <MessageSquare size={18}/>
                   </button>
                   <button 
                     onClick={() => updateStatus(f.docId, 'remove')} 
-                    className="p-2 bg-[#1e1f22] rounded-full text-[#b5bac1] hover:text-red-400 transition-colors"
+                    className="w-9 h-9 flex items-center justify-center bg-[#2b2d31] rounded-full text-[#b5bac1] hover:text-[#f23f42] transition-colors"
                     title="Remove Friend"
                   >
                     <X size={18}/>
@@ -371,10 +379,88 @@ function FriendsMain({ tab, profile, users, friends, chats, setActiveTab, setAct
   );
 }
 
+// Context Menu Component
+function ContextMenu({ x, y, menuType, message, onClose, actions }) {
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  // Prevent menu from overflowing screen
+  const safeX = Math.min(x, window.innerWidth - 220);
+  const safeY = Math.min(y, window.innerHeight - 380);
+
+  const Item = ({ icon: Icon, label, onClick, danger }) => (
+    <div 
+      onClick={(e) => { e.stopPropagation(); onClick(); onClose(); }}
+      className={`flex items-center justify-between px-2 py-1.5 mx-2 rounded cursor-pointer text-sm font-medium transition-colors ${danger ? 'text-[#f23f42] hover:bg-[#f23f42] hover:text-white' : 'text-[#dbdee1] hover:bg-[#5865f2] hover:text-white'}`}
+    >
+      <span>{label}</span>
+      {Icon && <Icon size={16} />}
+    </div>
+  );
+
+  return (
+    <div ref={menuRef} style={{ top: safeY, left: safeX }} className="fixed w-52 bg-[#111214] border border-[#1e1f22] rounded shadow-xl py-2 z-50 select-none">
+      {/* Emoji Reactions Row */}
+      <div className="flex items-center justify-between px-3 py-1 mb-1 border-b border-[#2b2d31] pb-2">
+         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">❤️</span>
+         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">💯</span>
+         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">👍</span>
+         <span className="cursor-pointer hover:bg-[#2b2d31] p-1 rounded text-lg">👎</span>
+      </div>
+
+      <Item label="Add Reaction" icon={ChevronRight} onClick={() => alert('Feature coming soon!')} />
+      <div className="my-1 border-t border-[#2b2d31]" />
+      
+      {menuType === 'own' && <Item label="Edit Message" icon={Pencil} onClick={() => actions.edit(message)} />}
+      
+      <Item label="Reply" icon={Reply} onClick={() => alert('Feature coming soon!')} />
+      <Item label="Forward" icon={Forward} onClick={() => alert('Feature coming soon!')} />
+      
+      <div className="my-1 border-t border-[#2b2d31]" />
+      
+      <Item label="Copy Text" icon={Copy} onClick={() => actions.copy(message.text)} />
+      <Item label="Pin Message" icon={Pin} onClick={() => alert('Feature coming soon!')} />
+      
+      {menuType === 'other' && <Item label="Bookmark Message" icon={Bookmark} onClick={() => alert('Feature coming soon!')} />}
+      
+      <Item label="Apps" icon={ChevronRight} onClick={() => alert('Feature coming soon!')} />
+      
+      <div className="my-1 border-t border-[#2b2d31]" />
+      
+      <Item label="Mark Unread" icon={BellOff} onClick={() => alert('Feature coming soon!')} />
+      <Item label="Copy Message Link" icon={Link} onClick={() => alert('Feature coming soon!')} />
+      <Item label="Speak Message" icon={Volume2} onClick={() => alert('Feature coming soon!')} />
+
+      <div className="my-1 border-t border-[#2b2d31]" />
+      
+      {menuType === 'own' ? (
+        <Item label="Delete Message" icon={Trash2} danger onClick={() => actions.delete(message.id)} />
+      ) : (
+        <>
+          <Item label="Report Message" icon={Flag} danger onClick={() => alert('Report submitted!')} />
+          <Item label="Copy Message ID" icon={Fingerprint} onClick={() => actions.copy(message.id)} />
+        </>
+      )}
+    </div>
+  );
+}
+
 function ChatArea({ chatId, messages, profile, users, db, appId }) {
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [contextMenu, setContextMenu] = useState(null);
   const endRef = useRef(null);
+  
   const filtered = messages.filter(m => m.chatId === chatId).sort((a,b) => a.timestamp - b.timestamp);
+  
   useEffect(() => { endRef.current?.scrollIntoView(); }, [filtered]);
 
   const send = async (e) => {
@@ -386,33 +472,126 @@ function ChatArea({ chatId, messages, profile, users, db, appId }) {
     setText('');
   };
 
+  const handleContextMenu = (e, message) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      message,
+      type: message.senderId === profile.id ? 'own' : 'other'
+    });
+  };
+
+  const menuActions = {
+    delete: async (id) => {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id));
+    },
+    edit: (msg) => {
+      setEditingId(msg.id);
+      setEditText(msg.text);
+    },
+    copy: (text) => {
+      navigator.clipboard.writeText(text);
+    }
+  };
+
+  const saveEdit = async (e, id) => {
+    e.preventDefault();
+    if (!editText.trim()) return setEditingId(null);
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id), { text: editText.trim() });
+    setEditingId(null);
+  };
+
+  // Group messages by date
+  const groupedMessages = [];
+  let lastDate = null;
+
+  filtered.forEach((m) => {
+    const dateObj = new Date(m.timestamp);
+    const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    if (dateStr !== lastDate) {
+      groupedMessages.push({ type: 'separator', date: dateStr, id: `sep-${dateStr}` });
+      lastDate = dateStr;
+    }
+    groupedMessages.push({ type: 'message', ...m });
+  });
+
   return (
-    <div className="flex-1 flex flex-col bg-[#313338]">
+    <div className="flex-1 flex flex-col bg-[#313338] relative" onClick={() => contextMenu && setContextMenu(null)}>
+      {contextMenu && (
+        <ContextMenu 
+          x={contextMenu.x} 
+          y={contextMenu.y} 
+          menuType={contextMenu.type} 
+          message={contextMenu.message} 
+          onClose={() => setContextMenu(null)}
+          actions={menuActions}
+        />
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        {filtered.map(m => {
+        {groupedMessages.map(item => {
+          if (item.type === 'separator') {
+            return (
+              <div key={item.id} className="flex items-center justify-center my-6">
+                <div className="flex-1 h-[1px] bg-[#3f4147]"></div>
+                <span className="mx-4 text-xs font-semibold text-[#949ba4]">{item.date}</span>
+                <div className="flex-1 h-[1px] bg-[#3f4147]"></div>
+              </div>
+            );
+          }
+
+          const m = item;
           const sender = users.find(u => u.id === m.senderId);
+          const isEditing = editingId === m.id;
+
           return (
-            <div key={m.id} className="flex gap-4 hover:bg-[#2e3035] -mx-4 px-4 py-1 group">
-              <Avatar url={sender?.avatar} size="w-10 h-10" />
-              <div>
+            <div 
+              key={m.id} 
+              className="flex gap-4 hover:bg-[#2e3035] -mx-4 px-4 py-1 group relative"
+              onContextMenu={(e) => handleContextMenu(e, m)}
+            >
+              <Avatar url={sender?.avatar} size="w-10 h-10 mt-0.5" />
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-white hover:underline cursor-pointer">{sender?.username}</span>
                   <span className="text-[11px] text-[#949ba4]">{new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
-                <div className="text-[#dbdee1] leading-relaxed">{m.text}</div>
+                
+                {isEditing ? (
+                  <form onSubmit={(e) => saveEdit(e, m.id)} className="mt-1">
+                    <input 
+                      autoFocus
+                      value={editText} 
+                      onChange={e => setEditText(e.target.value)} 
+                      onKeyDown={e => { if(e.key === 'Escape') setEditingId(null) }}
+                      className="w-full bg-[#383a40] rounded px-3 py-1.5 text-[#dbdee1] outline-none" 
+                    />
+                    <div className="text-xs text-[#949ba4] mt-1">escape to <span className="text-[#00a8fc] cursor-pointer hover:underline" onClick={() => setEditingId(null)}>cancel</span> • enter to <span className="text-[#00a8fc] cursor-pointer hover:underline" onClick={(e) => saveEdit(e, m.id)}>save</span></div>
+                  </form>
+                ) : (
+                  <div className="text-[#dbdee1] leading-relaxed break-words">{m.text}</div>
+                )}
               </div>
             </div>
           );
         })}
         <div ref={endRef} />
       </div>
-      <form onSubmit={send} className="p-4">
-        <input 
-          value={text} 
-          onChange={e => setText(e.target.value)} 
-          className="w-full bg-[#383a40] rounded-lg px-4 py-2 text-white outline-none placeholder:text-[#5c5e66]" 
-          placeholder="Message..." 
-        />
+
+      <form onSubmit={send} className="p-4 pt-0">
+        <div className="relative">
+          <input 
+            value={text} 
+            onChange={e => setText(e.target.value)} 
+            className="w-full bg-[#383a40] rounded-lg pl-4 pr-12 py-3 text-[#dbdee1] outline-none placeholder:text-[#5c5e66]" 
+            placeholder="Message..." 
+          />
+          <div className="absolute right-3 top-2.5 flex items-center gap-2">
+            <Smile size={24} className="text-[#b5bac1] hover:text-[#dbdee1] cursor-pointer transition-colors" />
+          </div>
+        </div>
       </form>
     </div>
   );
@@ -442,9 +621,9 @@ function AuthScreen({ db, appId }) {
       <div className="bg-[#313338] w-full max-w-[480px] p-8 rounded-lg shadow-2xl text-white">
         <h1 className="text-2xl font-bold text-center mb-6">{isLogin ? 'Welcome back!' : 'Create an account'}</h1>
         <form onSubmit={submit} className="space-y-4">
-          {!isLogin && <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />}
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none" required />
+          {!isLogin && <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />}
+          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />
+          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1e1f22] p-2.5 rounded outline-none border border-transparent focus:border-[#00a8fc] transition-colors" required />
           <button className="w-full bg-[#5865f2] hover:bg-[#4752c4] font-bold py-3 rounded mt-2 transition-colors">{isLogin ? 'Log In' : 'Continue'}</button>
         </form>
         <p className="mt-4 text-sm text-[#949ba4] text-center">{isLogin ? "Need an account?" : "Already have an account?"} <span onClick={() => setIsLogin(!isLogin)} className="text-[#00a8fc] cursor-pointer hover:underline">{isLogin ? 'Register' : 'Login'}</span></p>
