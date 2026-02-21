@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom/client'
+import ReactDOM from 'react-dom/client';
 import { 
   Users, MessageSquare, Hash, Plus, Settings, 
   LogOut, ShieldCheck, Check, X, Search, MoreVertical, 
@@ -35,7 +35,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'discord-clone-pro';
 
 const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
 
-export default function App() {
+function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -445,3 +445,10 @@ function AuthScreen({ user, db, appId }) {
     </div>
   );
 }
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
