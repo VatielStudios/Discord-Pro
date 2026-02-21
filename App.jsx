@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom/client'
 import { 
   Users, MessageSquare, Hash, Plus, Settings, 
   LogOut, ShieldCheck, Check, X, Search, MoreVertical, 
